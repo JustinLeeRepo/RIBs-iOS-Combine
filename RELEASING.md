@@ -20,14 +20,11 @@ iOS
 Releasing
 =========
 
-Note: This may vary based on your distribution mechanism.  Assuming CocoaPods:
+The iOS library is distributed through Swift Package Manager, which resolves versions from git tags:
 
- 1. Change the version in `Name.podspec` to reflect a new version.
- 2. Update the `CHANGELOG.md` for the impending release.
- 3. Update the `README.md` with the new version.
- 4. Verify formatting with swiftlint (swiftformat.sh)
- 5. `git commit -am "Release X.Y.Z."` (where X.Y.Z is the new version)
- 6. `git tag "X.Y.Z"` (where X.Y.Z is the new version)
- 7. `git push --tags`
- 8. `pod trunk push Name.podspec`
+ 1. Update the `CHANGELOG.md` for the impending release.
+ 2. Verify formatting with swiftlint (swiftformat.sh)
+ 3. `git commit -am "Release X.Y.Z."` (where X.Y.Z is the new version)
+ 4. `git tag "X.Y.Z"` (where X.Y.Z is the new version)
+ 5. `git push --tags`
 

@@ -3,8 +3,8 @@
 </p>
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Cocoapods Compatible](https://img.shields.io/cocoapods/v/RIBs.svg)](https://cocoapods.org/pods/ribs)
-[![Carthage Compatible](https://img.shields.io/badge/Carthage-compatible-4BC51D.svg)](https://github.com/Carthage/Carthage)
+
+> This is a fork of [uber/RIBs-iOS](https://github.com/uber/RIBs-iOS) that uses Apple's Combine framework instead of RxSwift. It has no third-party dependencies, requires iOS 15 or later, and is distributed through Swift Package Manager only.
 
 RIBs is the cross-platform architecture framework behind many mobile apps at Uber. The name RIBs is short for Router, Interactor and Builder, which are core components of this architecture. This framework is designed for mobile apps with a large number of engineers and nested states.
 
@@ -20,6 +20,32 @@ To get started with RIBs, please refer to the [RIBs documentation](https://githu
 
 To get more hands on with RIBs, we have written a [series of tutorials](https://github.com/uber/RIBs/wiki) that run you through the main aspects of the architecture with hands-on examples.
 
+The tutorial projects are in the [tutorials](tutorials) folder, and build a TicTacToe game step by step. They use the Combine API of this fork, while the documentation and the tutorial steps on the wiki were written for RxSwift. Where the wiki shows RxSwift code, use the Combine equivalent:
+
+| RxSwift, as shown on the wiki | This fork |
+| --- | --- |
+| `import RxSwift` | `import Combine` |
+| `Observable<T>` | `AnyPublisher<T, Never>`, or `AnyPublisher<T, Error>` for workflow steps |
+| `Variable<T>(x)`, `variable.value = y`, or `BehaviorRelay(value: x)`, `relay.accept(y)` | `CurrentValueSubject<T, Never>(x)`, `subject.send(y)` |
+| `ReplaySubject<T>.create(bufferSize: 1)` | `CurrentValueSubject<T?, Never>(nil)`, read with `.compactMap { $0 }` |
+| `subject.onNext(x)` | `subject.send(x)` |
+| `.asObservable().distinctUntilChanged { ... }` | `.removeDuplicates { ... }.eraseToAnyPublisher()` |
+| `.subscribe(onNext: { ... })` | `.sink { ... }` |
+| `.disposeOnDeactivate(interactor:)` | `.cancelOnDeactivate(interactor:)` |
+| `.disposeOnStop(_:)` | `.cancelOnStop(_:)` |
+| `.disposeWith(workflow:)` | `.cancelWith(workflow:)` |
+| `Observable.just(x)` in a workflow step | `Just(x).setFailureType(to: Error.self).eraseToAnyPublisher()` |
+| `subject.map { ... }` as the result of a workflow step | `subject.map { ... }.setFailureType(to: Error.self).eraseToAnyPublisher()` |
+| `step.asObservable()` | `step.asPublisher()` |
+| `button.rx.tap.subscribe(onNext: { ... })` | `button.addAction(UIAction { _ in ... }, for: .touchUpInside)` |
+| `import RxCocoa`, `DisposeBag()`, `.disposed(by: disposeBag)` | Not needed, the button keeps its action |
+
+The wiki code was also written before Swift 5, which the tutorial projects now use, and it could rely on `import RIBs` to bring in Foundation and UIKit. Where it does not compile:
+
+- Add `import Foundation`, or `import UIKit`, to a file that uses one of their types, such as `URL`.
+- Remove `weak` from a property requirement of a protocol, such as `weak var router: RootRouting? { get set }`.
+- Use the current UIKit names, which Xcode offers as a fix: `UITextField.BorderStyle` for `UITextBorderStyle`, `UIAlertAction.Style` for `UIAlertActionStyle`, and `UIApplication.LaunchOptionsKey` for `UIApplicationLaunchOptionsKey`.
+
 To read about the backstory on why we created RIBs, see [this blog post](https://www.uber.com/blog/new-rider-app-architecture/) we wrote when releasing RIBs in production the first time and see [this short video](https://www.youtube.com/watch?v=Q5cTT0M0YXg) where we discussed how the RIBs architecture works.
 
 #### What is the difference between RIBs and MV*/VIPER?
@@ -32,7 +58,7 @@ MVC, MVP, MVI, MVVM and VIPER are architecture patterns. RIBs is a framework. Wh
 There are some other novel things about RIBs. However, these could also be implemented with other MV*/VIPER frameworks. These are:
 - **Cross-platform approach**, allowing iOS and Android architecture to stay in sync.
 - **Tooling for easier adoption** on larger apps or teams. Tooling we are open sourcing includes IDE plugins for code generation and static code analysis.
-- **Strong opinions about how state should be communicated**, using DI and Rx. Each RIB defines its dependencies and what dependencies it needs from its parent. Parent components that fulfill a child’s parent dependencies are provided to child Builders as a constructor dependency to allow for hierarchical DI scoping. This means that information is communicated via these dependencies up and down the tree.
+- **Strong opinions about how state should be communicated**, using DI and Combine. Each RIB defines its dependencies and what dependencies it needs from its parent. Parent components that fulfill a child’s parent dependencies are provided to child Builders as a constructor dependency to allow for hierarchical DI scoping. This means that information is communicated via these dependencies up and down the tree.
 
 ## Usage
 
@@ -42,21 +68,22 @@ There are some other novel things about RIBs. However, these could also be imple
 For usage of the tooling built around RIBs, please see the [Tooling section](https://github.com/uber/RIBs/wiki#rib-tooling) in our documentation.
 
 ## Installation for iOS
-#### CocoaPods
+#### Swift Package Manager
 
-To integrate RIBs into your project add the following to your `Podfile`:
+To integrate RIBs into your project, add `https://github.com/JustinLeeRepo/RIBs-iOS.git` as a package dependency in Xcode (File > Add Package Dependencies...) and set the dependency rule to the `combine` branch, or add the following to your `Package.swift`:
 
-```ruby
-pod 'RIBs', '~> 0.9'
+```swift
+dependencies: [
+    .package(url: "https://github.com/JustinLeeRepo/RIBs-iOS.git", branch: "combine"),
+],
+targets: [
+    .target(name: "MyApp", dependencies: [.product(name: "RIBs", package: "RIBs-iOS")]),
+]
 ```
 
-#### Carthage
+Depend on the `combine` branch, or on one of its commits, and not on a version: the version tags in this repository come from the upstream project and point at its RxSwift code.
 
-To integrate RIBs into your project using Carthage add the following to your `Cartfile`:
-
-```ruby
-github "uber/RIBs" ~> 0.9
-```
+RIBs requires iOS 15 or later.
 
 ## Related projects
 
