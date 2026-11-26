@@ -14,8 +14,7 @@
 //  limitations under the License.
 //
 
-import RxSwift
-import RxCocoa
+import Combine
 
 public struct Score {
     public let player1Score: Int
@@ -27,7 +26,7 @@ public struct Score {
 }
 
 public protocol ScoreStream: AnyObject {
-    var score: Observable<Score> { get }
+    var score: AnyPublisher<Score, Never> { get }
 }
 
 public protocol MutableScoreStream: ScoreStream {
@@ -38,12 +37,12 @@ public class ScoreStreamImpl: MutableScoreStream {
 
     public init() {}
 
-    public var score: Observable<Score> {
+    public var score: AnyPublisher<Score, Never> {
         return variable
-            .asObservable()
-            .distinctUntilChanged { (lhs: Score, rhs: Score) -> Bool in
+            .removeDuplicates { (lhs: Score, rhs: Score) -> Bool in
                 Score.equals(lhs: lhs, rhs: rhs)
             }
+            .eraseToAnyPublisher()
     }
 
     public func updateScore(with winner: PlayerType) {
@@ -56,10 +55,10 @@ public class ScoreStreamImpl: MutableScoreStream {
                 return Score(player1Score: currentScore.player1Score, player2Score: currentScore.player2Score + 1)
             }
         }()
-        variable.accept(newScore)
+        variable.send(newScore)
     }
 
     // MARK: - Private
 
-    private let variable = BehaviorRelay<Score>(value: Score(player1Score: 0, player2Score: 0))
+    private let variable = CurrentValueSubject<Score, Never>(Score(player1Score: 0, player2Score: 0))
 }

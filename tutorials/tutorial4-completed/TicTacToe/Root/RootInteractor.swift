@@ -14,8 +14,9 @@
 //  limitations under the License.
 //
 
+import Combine
+import Foundation
 import RIBs
-import RxSwift
 
 protocol RootRouting: ViewableRouting {
     func routeToLoggedIn(withPlayer1Name player1Name: String, player2Name: String) -> LoggedInActionableItem
@@ -58,7 +59,7 @@ final class RootInteractor: PresentableInteractor<RootPresentable>, RootInteract
     func didLogin(withPlayer1Name player1Name: String, player2Name: String) {
         let loggedInActionableItem = router?.routeToLoggedIn(withPlayer1Name: player1Name, player2Name: player2Name)
         if let loggedInActionableItem = loggedInActionableItem {
-            loggedInActionableItemSubject.onNext(loggedInActionableItem)
+            loggedInActionableItemSubject.send(loggedInActionableItem)
         }
     }
 
@@ -68,19 +69,23 @@ final class RootInteractor: PresentableInteractor<RootPresentable>, RootInteract
         let launchGameWorkflow = LaunchGameWorkflow(url: url)
         launchGameWorkflow
             .subscribe(self)
-            .disposeOnDeactivate(interactor: self)
+            .cancelOnDeactivate(interactor: self)
     }
 
     // MARK: - RootActionableItem
 
-    func waitForLogin() -> Observable<(LoggedInActionableItem, ())> {
+    func waitForLogin() -> AnyPublisher<(LoggedInActionableItem, ()), Error> {
         return loggedInActionableItemSubject
+            .compactMap { $0 }
             .map { (loggedInItem: LoggedInActionableItem) -> (LoggedInActionableItem, ()) in
                 (loggedInItem, ())
-        }
+            }
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
     }
 
     // MARK: - Private
 
-    private let loggedInActionableItemSubject = ReplaySubject<LoggedInActionableItem>.create(bufferSize: 1)
+    // Replays the logged in actionable item, once there is one, to workflows that start waiting for it later.
+    private let loggedInActionableItemSubject = CurrentValueSubject<LoggedInActionableItem?, Never>(nil)
 }

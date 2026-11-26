@@ -14,8 +14,8 @@
 //  limitations under the License.
 //
 
+import Combine
 import RIBs
-import RxSwift
 
 protocol LoggedInRouting: Routing {
     func cleanupViews()
@@ -66,7 +66,7 @@ final class LoggedInInteractor: Interactor, LoggedInInteractable, LoggedInAction
 
     // MARK: - LoggedInActionableItem
 
-    func launchGame(with id: String?) -> Observable<(LoggedInActionableItem, ())> {
+    func launchGame(with id: String?) -> AnyPublisher<(LoggedInActionableItem, ()), Error> {
         let game: Game? = games.first { game in
             return game.id.lowercased() == id?.lowercased()
         }
@@ -75,7 +75,9 @@ final class LoggedInInteractor: Interactor, LoggedInInteractable, LoggedInAction
             router?.routeToGame(with: game.builder)
         }
 
-        return Observable.just((self, ()))
+        return Just((self, ()))
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
     }
 
     // MARK: - Private

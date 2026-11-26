@@ -14,8 +14,8 @@
 //  limitations under the License.
 //
 
+import Combine
 import RIBs
-import RxSwift
 
 enum PlayerType: Int {
     case player1 = 1

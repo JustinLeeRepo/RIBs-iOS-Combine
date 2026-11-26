@@ -73,6 +73,8 @@ final class RootViewController: UIViewController, RootPresentable, RootViewContr
     private func presentTargetViewController() {
         if let targetViewController = targetViewController {
             animationInProgress = true
+            // Present full screen. A card style sheet could be swiped away by the user, without the router knowing.
+            targetViewController.uiviewController.modalPresentationStyle = .fullScreen
             present(targetViewController.uiviewController, animated: true) { [weak self] in
                 self?.animationInProgress = false
             }

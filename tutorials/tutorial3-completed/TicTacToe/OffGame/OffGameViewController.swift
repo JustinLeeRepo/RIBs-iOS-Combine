@@ -14,9 +14,8 @@
 //  limitations under the License.
 //
 
+import Combine
 import RIBs
-import RxCocoa
-import RxSwift
 import SnapKit
 import UIKit
 
@@ -72,11 +71,9 @@ final class OffGameViewController: UIViewController, OffGamePresentable, OffGame
         startButton.setTitle("Start Game", for: .normal)
         startButton.setTitleColor(UIColor.white, for: .normal)
         startButton.backgroundColor = UIColor.black
-        startButton.rx.tap
-            .subscribe(onNext: { [weak self] in
-                self?.listener?.startGame()
-            })
-            .disposed(by: disposeBag)
+        startButton.addAction(UIAction { [weak self] _ in
+            self?.listener?.startGame()
+        }, for: .touchUpInside)
     }
 
     private func buildPlayerLabels() {
@@ -129,8 +126,6 @@ final class OffGameViewController: UIViewController, OffGamePresentable, OffGame
         let player2Score = score?.player2Score ?? 0
         player2Label?.text = "\(player2Name) (\(player2Score))"
     }
-
-    private let disposeBag = DisposeBag()
 }
 
 extension PlayerType {

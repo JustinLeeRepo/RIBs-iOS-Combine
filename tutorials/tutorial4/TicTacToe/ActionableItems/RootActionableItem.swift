@@ -14,7 +14,7 @@
 //  limitations under the License.
 //
 
-import RxSwift
+import Combine
 
 public protocol RootActionableItem: AnyObject {
 

@@ -14,9 +14,8 @@
 //  limitations under the License.
 //
 
+import Combine
 import RIBs
-import RxCocoa
-import RxSwift
 import SnapKit
 import UIKit
 
@@ -58,7 +57,7 @@ final class RandomWinViewController: UIViewController, RandomWinPresentable, Ran
             }
         }()
         let alert = UIAlertController(title: winnerString, message: nil, preferredStyle: .alert)
-        let closeAction = UIAlertAction(title: "That was random...", style: UIAlertActionStyle.default) { _ in
+        let closeAction = UIAlertAction(title: "That was random...", style: UIAlertAction.Style.default) { _ in
             handler()
         }
         alert.addAction(closeAction)
@@ -82,12 +81,8 @@ final class RandomWinViewController: UIViewController, RandomWinPresentable, Ran
             maker.height.equalTo(100)
         }
 
-        button.rx.tap
-            .subscribe(onNext: { [weak self] in
-                self?.listener?.determineWinner()
-            })
-            .disposed(by: disposeBag)
+        button.addAction(UIAction { [weak self] _ in
+            self?.listener?.determineWinner()
+        }, for: .touchUpInside)
     }
-
-    private let disposeBag = DisposeBag()
 }

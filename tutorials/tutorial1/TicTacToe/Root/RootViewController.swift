@@ -45,6 +45,8 @@ final class RootViewController: UIViewController, RootPresentable, RootViewContr
     // MARK: - RootViewControllable
 
     func present(viewController: ViewControllable) {
+        // Present full screen. A card style sheet could be swiped away by the user, without the router knowing.
+        viewController.uiviewController.modalPresentationStyle = .fullScreen
         present(viewController.uiviewController, animated: true, completion: nil)
     }
 }

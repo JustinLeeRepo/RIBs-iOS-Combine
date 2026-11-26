@@ -14,8 +14,8 @@
 //  limitations under the License.
 //
 
+import Combine
 import RIBs
-import RxSwift
 
 protocol RootRouting: ViewableRouting {
     func routeToLoggedIn(withPlayer1Name player1Name: String, player2Name: String)

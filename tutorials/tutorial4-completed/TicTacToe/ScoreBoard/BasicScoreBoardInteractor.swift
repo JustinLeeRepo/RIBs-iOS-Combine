@@ -14,8 +14,8 @@
 //  limitations under the License.
 //
 
+import Combine
 import RIBs
-import RxSwift
 
 public protocol BasicScoreBoardRouting: ViewableRouting {
     // TODO: Declare methods the interactor can invoke to manage sub-tree via the router.
@@ -55,9 +55,9 @@ final class BasicScoreBoardInteractor: PresentableInteractor<BasicScoreBoardPres
 
     private func updateScore() {
         scoreStream.score
-            .subscribe(onNext: { (score: Score) in
+            .sink { (score: Score) in
                 self.presenter.set(score: score)
-            })
-            .disposeOnDeactivate(interactor: self)
+            }
+            .cancelOnDeactivate(interactor: self)
     }
 }

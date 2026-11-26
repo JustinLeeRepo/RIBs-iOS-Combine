@@ -14,9 +14,8 @@
 //  limitations under the License.
 //
 
+import Combine
 import RIBs
-import RxCocoa
-import RxSwift
 import SnapKit
 import UIKit
 
@@ -56,14 +55,10 @@ final class OffGameViewController: UIViewController, OffGamePresentable, OffGame
         startButton.setTitle("Start Game", for: .normal)
         startButton.setTitleColor(UIColor.white, for: .normal)
         startButton.backgroundColor = UIColor.black
-        startButton.rx.tap
-            .subscribe(onNext: { [weak self] in
-                self?.listener?.startGame()
-            })
-            .disposed(by: disposeBag)
+        startButton.addAction(UIAction { [weak self] _ in
+            self?.listener?.startGame()
+        }, for: .touchUpInside)
     }
-
-    private let disposeBag = DisposeBag()
 }
 
 extension PlayerType {

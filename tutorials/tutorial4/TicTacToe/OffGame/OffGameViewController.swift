@@ -14,9 +14,8 @@
 //  limitations under the License.
 //
 
+import Combine
 import RIBs
-import RxCocoa
-import RxSwift
 import SnapKit
 import UIKit
 
@@ -45,7 +44,7 @@ final class OffGameViewController: UIViewController, OffGamePresentable, OffGame
     }
 
     func show(scoreBoardView: ViewControllable) {
-        addChildViewController(scoreBoardView.uiviewController)
+        addChild(scoreBoardView.uiviewController)
         view.addSubview(scoreBoardView.uiviewController.view)
         scoreBoardView.uiviewController.view.snp.makeConstraints { (maker: ConstraintMaker) in
             maker.top.equalTo(self.view).offset(70)
@@ -81,14 +80,10 @@ final class OffGameViewController: UIViewController, OffGamePresentable, OffGame
         startButton.setTitle(game.name, for: .normal)
         startButton.setTitleColor(UIColor.white, for: .normal)
         startButton.backgroundColor = UIColor.black
-        startButton.rx.tap
-            .subscribe(onNext: { [weak self] in
-                self?.listener?.start(game)
-            })
-            .disposed(by: disposeBag)
+        startButton.addAction(UIAction { [weak self] _ in
+            self?.listener?.start(game)
+        }, for: .touchUpInside)
 
         return startButton
     }
-
-    private let disposeBag = DisposeBag()
 }

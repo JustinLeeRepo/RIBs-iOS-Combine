@@ -14,8 +14,8 @@
 //  limitations under the License.
 //
 
+import Combine
 import RIBs
-import RxSwift
 
 protocol OffGameRouting: ViewableRouting {
     // TODO: Declare methods the interactor can invoke to manage sub-tree via the router.
@@ -58,10 +58,10 @@ final class OffGameInteractor: PresentableInteractor<OffGamePresentable>, OffGam
 
     private func updateScore() {
         scoreStream.score
-            .subscribe(onNext: { (score: Score) in
+            .sink { (score: Score) in
                 self.presenter.set(score: score)
-            })
-            .disposeOnDeactivate(interactor: self)
+            }
+            .cancelOnDeactivate(interactor: self)
     }
     // MARK: - OffGamePresentableListener
 

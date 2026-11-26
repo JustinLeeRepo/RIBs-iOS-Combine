@@ -14,9 +14,8 @@
 //  limitations under the License.
 //
 
+import Combine
 import RIBs
-import RxCocoa
-import RxSwift
 import SnapKit
 import UIKit
 
@@ -48,7 +47,7 @@ final class LoggedOutViewController: UIViewController, LoggedOutPresentable, Log
 
     private func buildPlayerFields() -> (player1Field: UITextField, player2Field: UITextField) {
         let player1Field = UITextField()
-        player1Field.borderStyle = UITextBorderStyle.line
+        player1Field.borderStyle = UITextField.BorderStyle.line
         view.addSubview(player1Field)
         player1Field.placeholder = "Player 1 name"
         player1Field.snp.makeConstraints { (maker: ConstraintMaker) in
@@ -58,7 +57,7 @@ final class LoggedOutViewController: UIViewController, LoggedOutPresentable, Log
         }
 
         let player2Field = UITextField()
-        player2Field.borderStyle = UITextBorderStyle.line
+        player2Field.borderStyle = UITextField.BorderStyle.line
         view.addSubview(player2Field)
         player2Field.placeholder = "Player 2 name"
         player2Field.snp.makeConstraints { (maker: ConstraintMaker) in
@@ -79,12 +78,8 @@ final class LoggedOutViewController: UIViewController, LoggedOutPresentable, Log
         loginButton.setTitle("Login", for: .normal)
         loginButton.setTitleColor(UIColor.white, for: .normal)
         loginButton.backgroundColor = UIColor.black
-        loginButton.rx.tap
-            .subscribe(onNext: { [weak self] in
-                self?.listener?.login(withPlayer1Name: player1Field.text, player2Name: player2Field.text)
-            })
-            .disposed(by: disposeBag)
+        loginButton.addAction(UIAction { [weak self] _ in
+            self?.listener?.login(withPlayer1Name: player1Field.text, player2Name: player2Field.text)
+        }, for: .touchUpInside)
     }
-
-    private let disposeBag = DisposeBag()
 }
