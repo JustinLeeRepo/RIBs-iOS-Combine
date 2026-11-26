@@ -1,7 +1,7 @@
 //___FILEHEADER___
 
+import Combine
 import RIBs
-import RxSwift
 import UIKit
 
 protocol ___VARIABLE_productName___PresentableListener: AnyObject {

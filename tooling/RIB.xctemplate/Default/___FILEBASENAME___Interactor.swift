@@ -1,7 +1,7 @@
 //___FILEHEADER___
 
+import Combine
 import RIBs
-import RxSwift
 
 protocol ___VARIABLE_productName___Routing: Routing {
     func cleanupViews()

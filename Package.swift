@@ -4,24 +4,26 @@ import PackageDescription
 let package = Package(
     name: "RIBs",
     platforms: [
-        .iOS(.v9),
+        .iOS("15.0"),
     ],
     products: [
         .library(name: "RIBs", targets: ["RIBs"]),
     ],
-    dependencies: [
-        .package(url: "https://github.com/ReactiveX/RxSwift", from: "6.0.0"),
-    ],
     targets: [
         .target(
             name: "RIBs",
-            dependencies: ["RxSwift", "RxRelay"],
-            path: "ios/RIBs"
+            path: "RIBs"
         ),
         .testTarget(
             name: "RIBsTests",
             dependencies: ["RIBs"],
-            path: "ios/RIBsTests"
+            path: "RIBsTests",
+            exclude: [
+                // These rely on an `expectAssertionFailure` helper that does not exist in this repository, and were
+                // never part of the test target.
+                "ComponentizedBuilderTests.swift",
+                "MultiStageComponentizedBuilderTests.swift",
+            ]
         ),
     ]
 )

@@ -14,8 +14,7 @@
 //  limitations under the License.
 //
 
-import RxSwift
-import RxRelay
+import Combine
 import UIKit
 
 /// Leak detection status.
@@ -60,13 +59,13 @@ public class LeakDetector {
     ///
     /// The status changes between InProgress and DidComplete as units register for new detections, cancel existing
     /// detections, and existing detections complete.
-    public var status: Observable<LeakDetectionStatus> {
+    public var status: AnyPublisher<LeakDetectionStatus, Never> {
         return expectationCount
-            .asObservable()
             .map { expectationCount in
                 expectationCount > 0 ? LeakDetectionStatus.InProgress : LeakDetectionStatus.DidComplete
             }
-            .distinctUntilChanged()
+            .removeDuplicates()
+            .eraseToAnyPublisher()
     }
 
     /// Sets up an expectation for the given object to be deallocated within the given time.
@@ -76,24 +75,36 @@ public class LeakDetector {
     /// - returns: The handle that can be used to cancel the expectation.
     @discardableResult
     public func expectDeallocate(object: AnyObject, inTime time: TimeInterval = LeakDefaultExpectationTime.deallocation) -> LeakDetectionHandle {
-        expectationCount.accept(expectationCount.value + 1)
+        expectationCount.send(expectationCount.value + 1)
 
         let objectDescription = String(describing: object)
-        let objectId = String(ObjectIdentifier(object).hashValue) as NSString
-        trackingObjects.setObject(object, forKey: objectId)
+        let objectId = String(ObjectIdentifier(object).hashValue)
+        // Each expectation tracks its object under a key of its own. Keyed by the object's address alone, an object
+        // allocated at a freed object's address would take over its entry and be reported as the freed one leaking.
+        let key = "\(objectId)-\(UUID().uuidString)" as NSString
+        trackingObjects.setObject(object, forKey: key)
 
         let handle = LeakDetectionHandleImpl {
-            self.expectationCount.accept(self.expectationCount.value - 1)
+            self.expectationCount.send(self.expectationCount.value - 1)
         }
 
         Executor.execute(withDelay: time) {
+            // The expectation is over either way, so its object is no longer expected to be deallocated.
+            defer {
+                self.trackingObjects.removeObject(forKey: key)
+            }
+
             // Retain the handle so we can check for the cancelled status. Also cannot use the cancellable
             // concurrency API since the returned handle must be retained to ensure closure is executed.
             if !handle.cancelled {
-                let didDeallocate = (self.trackingObjects.object(forKey: objectId) == nil)
+                let didDeallocate = (self.trackingObjects.object(forKey: key) == nil)
                 let message = "<\(objectDescription): \(objectId)> has leaked. Objects are expected to be deallocated at this time: \(self.trackingObjects)"
 
-                if self.disableLeakDetector {
+                if let leakReporter = self.leakReporter {
+                    if !didDeallocate {
+                        leakReporter(message)
+                    }
+                } else if self.disableLeakDetector {
                     if !didDeallocate {
                         print("Leak detection is disabled. This should only be used for debugging purposes.")
                         print(message)
@@ -103,7 +114,10 @@ public class LeakDetector {
                 }
             }
 
-            self.expectationCount.accept(self.expectationCount.value - 1)
+            // A cancelled expectation was already taken off the count when it was cancelled.
+            if handle.complete() {
+                self.expectationCount.send(self.expectationCount.value - 1)
+            }
         }
 
         return handle
@@ -116,10 +130,10 @@ public class LeakDetector {
     /// - returns: The handle that can be used to cancel the expectation.
     @discardableResult
     public func expectViewControllerDisappear(viewController: UIViewController, inTime time: TimeInterval = LeakDefaultExpectationTime.viewDisappear) -> LeakDetectionHandle {
-        expectationCount.accept(expectationCount.value + 1)
+        expectationCount.send(expectationCount.value + 1)
 
         let handle = LeakDetectionHandleImpl {
-            self.expectationCount.accept(self.expectationCount.value - 1)
+            self.expectationCount.send(self.expectationCount.value - 1)
         }
 
         Executor.execute(withDelay: time) { [weak viewController] in
@@ -139,7 +153,10 @@ public class LeakDetector {
                 }
             }
 
-            self.expectationCount.accept(self.expectationCount.value - 1)
+            // A cancelled expectation was already taken off the count when it was cancelled.
+            if handle.complete() {
+                self.expectationCount.send(self.expectationCount.value - 1)
+            }
         }
 
         return handle
@@ -150,18 +167,21 @@ public class LeakDetector {
     // Test override for leak detectors.
     static var disableLeakDetectorOverride: Bool = false
 
+    /// Test override: receives the message of each leaked object, in place of the assert.
+    var leakReporter: ((String) -> Void)?
+
     #if DEBUG
         /// Reset the state of Leak Detector, internal for UI test only.
         func reset() {
             trackingObjects.removeAllObjects()
-            expectationCount.accept(0)
+            expectationCount.send(0)
         }
     #endif
 
     // MARK: - Private Interface
 
     private let trackingObjects = NSMapTable<AnyObject, AnyObject>.strongToWeakObjects()
-    private let expectationCount = BehaviorRelay<Int>(value: 0)
+    private let expectationCount = OrderedCurrentValueSubject<Int, Never>(0)
 
     lazy var disableLeakDetector: Bool = {
         if let environmentValue = ProcessInfo().environment["DISABLE_LEAK_DETECTION"] {
@@ -177,10 +197,10 @@ public class LeakDetector {
 fileprivate class LeakDetectionHandleImpl: LeakDetectionHandle {
 
     var cancelled: Bool {
-        return cancelledRelay.value
+        return cancelledSubject.value
     }
 
-    let cancelledRelay = BehaviorRelay<Bool>(value: false)
+    let cancelledSubject = CurrentValueSubject<Bool, Never>(false)
     let cancelClosure: (() -> ())?
 
     init(cancelClosure: (() -> ())? = nil) {
@@ -188,7 +208,37 @@ fileprivate class LeakDetectionHandleImpl: LeakDetectionHandle {
     }
 
     func cancel() {
-        cancelledRelay.accept(true)
+        // An expectation ends once, either when it is cancelled or when its time is up.
+        guard end(cancelling: true) else {
+            return
+        }
         cancelClosure?()
+    }
+
+    /// Ends the expectation because its time is up.
+    ///
+    /// - returns: `false` if the expectation was cancelled before its time was up.
+    func complete() -> Bool {
+        return end(cancelling: false)
+    }
+
+    // MARK: - Private
+
+    private let lock = NSLock()
+    private var didEnd = false
+
+    private func end(cancelling: Bool) -> Bool {
+        lock.lock()
+        defer {
+            lock.unlock()
+        }
+        guard !didEnd else {
+            return false
+        }
+        didEnd = true
+        if cancelling {
+            cancelledSubject.send(true)
+        }
+        return true
     }
 }

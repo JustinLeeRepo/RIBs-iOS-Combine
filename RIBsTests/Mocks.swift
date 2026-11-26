@@ -14,9 +14,8 @@
 //  limitations under the License.
 //
 
+import Combine
 import RIBs
-import RxRelay
-import RxSwift
 import UIKit
 
 class WindowMock: UIWindow {
@@ -49,22 +48,22 @@ class InteractorMock: Interactable {
         return active.value
     }
 
-    var isActiveStream: Observable<Bool> {
-        return active.asObservable()
+    var isActiveStream: AnyPublisher<Bool, Never> {
+        return active.eraseToAnyPublisher()
     }
 
-    private let active = BehaviorRelay<Bool>(value: false)
+    private let active = CurrentValueSubject<Bool, Never>(false)
 
     init() {}
 
     // MARK: - Lifecycle
 
     func activate() {
-        active.accept(true)
+        active.send(true)
     }
 
     func deactivate() {
-        active.accept(false)
+        active.send(false)
     }
 }
 
@@ -72,9 +71,9 @@ class InteractableMock: Interactable {
     // Variables
     var isActive: Bool = false { didSet { isActiveSetCallCount += 1 } }
     var isActiveSetCallCount = 0
-    var isActiveStreamSubject: PublishSubject<Bool> = PublishSubject<Bool>() { didSet { isActiveStreamSubjectSetCallCount += 1 } }
+    var isActiveStreamSubject: PassthroughSubject<Bool, Never> = PassthroughSubject<Bool, Never>() { didSet { isActiveStreamSubjectSetCallCount += 1 } }
     var isActiveStreamSubjectSetCallCount = 0
-    var isActiveStream: Observable<Bool> { return isActiveStreamSubject }
+    var isActiveStream: AnyPublisher<Bool, Never> { return isActiveStreamSubject.eraseToAnyPublisher() }
 
     // Function Handlers
     var activateHandler: (() -> ())?
@@ -96,5 +95,51 @@ class InteractableMock: Interactable {
         if let deactivateHandler = deactivateHandler {
             return deactivateHandler()
         }
+    }
+}
+
+/// An interactor that reports its lifecycle to closures.
+final class LifecycleInteractor: Interactor {
+
+    var didBecomeActiveHandler: (() -> ())?
+    var willResignActiveHandler: (() -> ())?
+
+    // MARK: - Overrides
+
+    override func didBecomeActive() {
+        super.didBecomeActive()
+
+        didBecomeActiveHandler?()
+    }
+
+    override func willResignActive() {
+        super.willResignActive()
+
+        willResignActiveHandler?()
+    }
+}
+
+/// A worker that reports its lifecycle to closures.
+final class LifecycleWorker: Worker {
+
+    private(set) var didStartCallCount: Int = 0
+    private(set) var didStopCallCount: Int = 0
+    var didStartHandler: (() -> ())?
+    var didStopHandler: (() -> ())?
+
+    // MARK: - Overrides
+
+    override func didStart(_ interactorScope: InteractorScope) {
+        super.didStart(interactorScope)
+
+        didStartCallCount += 1
+        didStartHandler?()
+    }
+
+    override func didStop() {
+        super.didStop()
+
+        didStopCallCount += 1
+        didStopHandler?()
     }
 }

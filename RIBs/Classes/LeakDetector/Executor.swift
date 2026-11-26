@@ -16,7 +16,6 @@
 
 import Dispatch
 import Foundation
-import RxSwift
 
 public class Executor {
 
@@ -35,26 +34,25 @@ public class Executor {
         let period = DispatchTimeInterval.milliseconds(maxFrameDuration / 3)
         var lastRunLoopTime = Date().timeIntervalSinceReferenceDate
         var properFrameTime = 0.0
-        var didExecute = false
-        _ = Observable<Int>
-            .timer(DispatchTimeInterval.milliseconds(0), period: period, scheduler: MainScheduler.instance)
-            .take(while: {  _ in
-                !didExecute
-            })
-            .subscribe(onNext: { _ in
-                let currentTime = Date().timeIntervalSinceReferenceDate
-                let trueElapsedTime = currentTime - lastRunLoopTime
-                lastRunLoopTime = currentTime
 
-                // If we did drop frame, we under-count the frame duration, which is fine. It
-                // just means the logic is performed slightly later.
-                let boundedElapsedTime = min(trueElapsedTime, Double(maxFrameDuration) / 1000)
-                properFrameTime += boundedElapsedTime
-                if properFrameTime > delay {
-                    didExecute = true
+        // The event handler retains the timer, keeping it alive until it is cancelled.
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.main)
+        timer.schedule(deadline: .now(), repeating: period)
+        timer.setEventHandler {
+            let currentTime = Date().timeIntervalSinceReferenceDate
+            let trueElapsedTime = currentTime - lastRunLoopTime
+            lastRunLoopTime = currentTime
 
-                    logic()
-                }
-            })
+            // If we did drop frame, we under-count the frame duration, which is fine. It
+            // just means the logic is performed slightly later.
+            let boundedElapsedTime = min(trueElapsedTime, Double(maxFrameDuration) / 1000)
+            properFrameTime += boundedElapsedTime
+            if properFrameTime > delay {
+                timer.cancel()
+
+                logic()
+            }
+        }
+        timer.resume()
     }
 }
