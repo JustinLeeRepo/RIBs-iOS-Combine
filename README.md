@@ -70,14 +70,14 @@ For usage of the tooling built around RIBs, please see the [Tooling section](htt
 ## Installation for iOS
 #### Swift Package Manager
 
-To integrate RIBs into your project, add `https://github.com/JustinLeeRepo/RIBs-iOS.git` as a package dependency in Xcode (File > Add Package Dependencies...) and set the dependency rule to the `combine` branch, or add the following to your `Package.swift`:
+To integrate RIBs into your project, add `https://github.com/JustinLeeRepo/RIBs-iOS-Combine.git` as a package dependency in Xcode (File > Add Package Dependencies...) and set the dependency rule to the `combine` branch, or add the following to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/JustinLeeRepo/RIBs-iOS.git", branch: "combine"),
+    .package(url: "https://github.com/JustinLeeRepo/RIBs-iOS-Combine.git", branch: "combine"),
 ],
 targets: [
-    .target(name: "MyApp", dependencies: [.product(name: "RIBs", package: "RIBs-iOS")]),
+    .target(name: "MyApp", dependencies: [.product(name: "RIBs", package: "RIBs-iOS-Combine")]),
 ]
 ```
 
